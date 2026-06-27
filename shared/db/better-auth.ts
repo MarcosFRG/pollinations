@@ -144,28 +144,6 @@ export const apikey = sqliteTable("apikey", {
   index("idx_apikey_byop_client_key_id").on(table.byopClientKeyId),
 ]);
 
-export const stripeAutoTopUpAttempt = sqliteTable("stripe_auto_top_up_attempt", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  stripeInvoiceId: text("stripe_invoice_id").unique(),
-  amountUsd: integer("amount_usd").notNull(),
-  status: text("status").notNull(),
-  failureReason: text("failure_reason"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .defaultNow()
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
-}, (table) => [
-  index("idx_stripe_auto_top_up_attempt_user_id").on(table.userId),
-  index("idx_stripe_auto_top_up_attempt_status").on(table.status),
-]);
-
 // Drizzle relations for query builder joins
 export const userRelations = relations(user, ({ many }) => ({
   apikeys: many(apikey),
@@ -220,21 +198,6 @@ export const deviceCode = sqliteTable("device_code", {
   index("idx_device_code_user_code").on(table.userCode),
 ]);
 
-export const stripeCheckoutCredits = sqliteTable("stripe_checkout_credits", {
-  sessionId: text("session_id").primaryKey(),
-  eventId: text("event_id").notNull(),
-  eventType: text("event_type").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  pollenCredited: real("pollen_credited").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .defaultNow()
-    .notNull(),
-}, (table) => [
-  index("idx_stripe_checkout_credits_user_id").on(table.userId),
-]);
-
 export const polarCheckoutCredits = sqliteTable("polar_checkout_credits", {
   orderId: text("order_id").primaryKey(),
   eventId: text("event_id").notNull(),
@@ -257,35 +220,4 @@ export const polarCheckoutCredits = sqliteTable("polar_checkout_credits", {
     .notNull(),
 }, (table) => [
   index("idx_polar_checkout_credits_user_id").on(table.userId),
-]);
-
-// Reward ledger: one row == one earned reward. `claimedAt` is null until the
-// user claims it, and only claiming credits the user's balance. Everything that
-// can earn pollen is modelled as a reward, so there is no reward-kind
-// discriminator — `questId` already names what was earned. The old
-// GitHub-shaped quest_payout_credits table is backfilled into here and dropped
-// by the rewards migration.
-export const rewards = sqliteTable("rewards", {
-  id: text("id").primaryKey(),
-  // Idempotency guard. Encodes the quest's completion scope, e.g.
-  // "quest:{issue}" or "quest:{questId}:user:{userId}".
-  idempotencyKey: text("idempotency_key").notNull().unique(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  // Catalog id of the quest that was earned; null for one-off rewards.
-  questId: text("quest_id"),
-  // Quest title snapshotted when earned, so history renders it directly.
-  title: text("title").notNull(),
-  // Optional quest link snapshotted when earned.
-  url: text("url"),
-  pollenAmount: real("pollen_amount").notNull(),
-  // Which balance bucket will be credited when claimed: "tier" or "pack".
-  balanceBucket: text("balance_bucket").notNull(),
-  earnedAt: integer("earned_at", { mode: "timestamp" })
-    .defaultNow()
-    .notNull(),
-  claimedAt: integer("claimed_at", { mode: "timestamp" }),
-}, (table) => [
-  index("idx_rewards_user_id").on(table.userId),
 ]);
